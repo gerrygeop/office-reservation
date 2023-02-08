@@ -22,7 +22,11 @@ class OfficeController extends Controller
                 fn (Builder $builder)
                 => $builder->whereRelation('reservations', 'user_id', '=', request('user_id'))
             )
-            ->latest('id')
+            ->when(
+                request('lat') && request('lng'),
+                fn ($builder) => $builder->nearestTo(request('lat'), request('lng')),
+                fn ($builder) => $builder->orderBy('id', 'ASC')
+            )
             ->with(['images', 'tags', 'user'])
             ->withCount(['reservations' => fn ($builder) => $builder->where('status', Reservation::STATUS_ACTIVE)])
             ->paginate(10);
