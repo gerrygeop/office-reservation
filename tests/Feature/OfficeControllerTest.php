@@ -52,14 +52,14 @@ class OfficeControllerTest extends TestCase
     /**
      * @test
      */
-    public function itFiltersByHostId()
+    public function itFiltersByUsertId()
     {
         Office::factory(3)->create();
 
-        $host = User::factory()->create();
-        $office = Office::factory()->for($host)->create();
+        $user = User::factory()->create();
+        $office = Office::factory()->for($user)->create();
 
-        $response = $this->get('/api/offices?host_id=' . $host->id);
+        $response = $this->get('/api/offices?user_id=' . $user->id);
 
         $response->assertOk();
         $response->assertJsonCount(1, 'data');
@@ -70,17 +70,17 @@ class OfficeControllerTest extends TestCase
     /**
      * @test
      */
-    public function itFiltersByUserId()
+    public function itFiltersByVisitorId()
     {
         Office::factory(3)->create();
 
-        $user = User::factory()->create();
+        $visitor = User::factory()->create();
         $office = Office::factory()->create();
 
         Reservation::factory()->for(Office::factory())->create();
-        Reservation::factory()->for($office)->for($user)->create();
+        Reservation::factory()->for($office)->for($visitor)->create();
 
-        $response = $this->get('/api/offices?user_id=' . $user->id);
+        $response = $this->get('/api/offices?visitor_id=' . $visitor->id);
 
         $response->assertOk();
         $response->assertJsonCount(1, 'data');
@@ -180,7 +180,7 @@ class OfficeControllerTest extends TestCase
 
         $response = $this->get('/api/offices/' . $office->id);
         $response->assertOk();
-        $response->dump();
+        // $response->dump();
 
         $this->assertEquals(1, $response->json('data')['reservations_count']);
         $this->assertIsArray($response->json('data')['tags']);
