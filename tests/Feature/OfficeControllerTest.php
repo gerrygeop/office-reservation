@@ -11,8 +11,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
 
-use function PHPUnit\Framework\assertNotNull;
-
 class OfficeControllerTest extends TestCase
 {
     use RefreshDatabase;
@@ -22,16 +20,19 @@ class OfficeControllerTest extends TestCase
      */
     public function itListAllOfficesInPaginatedWay()
     {
-        Office::factory(3)->create();
+        Office::factory(30)->create();
 
         $response = $this->get('/api/offices');
 
         // $response->dump();
         $response->assertOk();
-        $response->assertJsonCount(3, 'data');
-        $this->assertNotNull($response->json('data')[0]['id']);
-        $this->assertNotNull($response->json('meta'));
-        $this->assertNotNull($response->json('links'));
+        $response->assertJsonStructure(['data', 'meta', 'links'])
+            ->assertJsonCount(10, 'data')
+            ->assertJsonStructure([
+                'data' => [
+                    '*' => ['id', 'title']
+                ]
+            ]);
     }
 
     /**
@@ -188,5 +189,54 @@ class OfficeControllerTest extends TestCase
         $this->assertIsArray($response->json('data')['images']);
         $this->assertCount(1, $response->json('data')['images']);
         $this->assertEquals($user->id, $response->json('data')['user']['id']);
+    }
+
+    /**
+     * @test
+     */
+    public function itCreateAnOffice()
+    {
+        $user = User::factory()->createQuietly();
+        $tag1 = Tag::factory()->create();
+        $tag2 = Tag::factory()->create();
+
+        $this->actingAs($user);
+
+        $response = $this->postJson('/api/offices', [
+            'title' => 'Kansas',
+            'description' => 'description',
+            'lat' => '-1.246683793171039',
+            'lng' => '116.85410448618018',
+            'address_line1' => 'address 1',
+            'price_per_day' => 10_000,
+            'monthly_discount' => 5,
+            'tags' => [$tag1->id, $tag2->id],
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.title', 'Kansas')
+            ->assertJsonPath('data.approval_status', Office::APPROVAL_PENDING)
+            ->assertJsonPath('data.user.id', $user->id)
+            ->assertJsonCount(2, 'data.tags');
+
+        $this->assertDatabaseHas('offices', [
+            'title' => 'Kansas'
+        ]);
+    }
+
+    /**
+     * @test
+     */
+    public function itDoesntAllowCreatingIfScopeIsNotProvided()
+    {
+        $user = User::factory()->createQuietly();
+
+        $token = $user->createToken('test', ['office.create']);
+
+        $response = $this->postJson('/api/offices', [], [
+            'Authorization' => 'Bearer ' . $token->plainTextToken
+        ]);
+
+        $response->assertStatus(403);
     }
 }
