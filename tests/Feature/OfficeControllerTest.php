@@ -9,6 +9,7 @@ use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Http\Response;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -234,7 +235,7 @@ class OfficeControllerTest extends TestCase
 
         $response = $this->postJson('/api/offices');
 
-        $response->assertStatus(403);
+        $response->assertStatus(Response::HTTP_FORBIDDEN);
     }
 
     /**
@@ -248,7 +249,7 @@ class OfficeControllerTest extends TestCase
 
         $response = $this->postJson('/api/offices');
 
-        $this->assertNotEquals(403, $response->status());
+        $this->assertNotEquals(Response::HTTP_FORBIDDEN, $response->status());
     }
 
     /**
@@ -292,6 +293,6 @@ class OfficeControllerTest extends TestCase
             'title' => 'Wana Group'
         ]);
 
-        $response->assertStatus(403);
+        $response->assertStatus(Response::HTTP_FORBIDDEN);
     }
 }
