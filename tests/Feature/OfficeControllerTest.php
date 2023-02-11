@@ -7,9 +7,11 @@ use App\Models\Office;
 use App\Models\Reservation;
 use App\Models\Tag;
 use App\Models\User;
+use App\Notifications\OfficePendingApproval;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -26,7 +28,6 @@ class OfficeControllerTest extends TestCase
 
         $response = $this->get('/api/offices');
 
-        // $response->dump();
         $response->assertOk();
         $response->assertJsonStructure(['data', 'meta', 'links'])
             ->assertJsonCount(10, 'data')
@@ -48,7 +49,6 @@ class OfficeControllerTest extends TestCase
 
         $response = $this->get('/api/offices');
 
-        // $response->dump();
         $response->assertOk();
     }
 
@@ -67,7 +67,6 @@ class OfficeControllerTest extends TestCase
         $response->assertOk();
         $response->assertJsonCount(1, 'data');
         $this->assertEquals($office->id, $response->json('data')[0]['id']);
-        // $response->dump();
     }
 
     /**
@@ -88,7 +87,6 @@ class OfficeControllerTest extends TestCase
         $response->assertOk();
         $response->assertJsonCount(1, 'data');
         $this->assertEquals($office->id, $response->json('data')[0]['id']);
-        // $response->dump();
     }
 
     /**
@@ -122,7 +120,6 @@ class OfficeControllerTest extends TestCase
 
         $response = $this->get('/api/offices');
         $response->assertOk();
-        // $response->dump();
 
         $this->assertEquals(1, $response->json('data')[0]['reservations_count']);
     }
@@ -132,19 +129,19 @@ class OfficeControllerTest extends TestCase
      */
     public function itOrderByDistanceWhenCoordinatesAreProvided()
     {
-        $office1 = Office::factory()->create([
+        Office::factory()->create([
             'lat' => '-1.246683793171039',
             'lng' => '116.85410448618018',
             'title' => 'Balikpapan'
         ]);
 
-        $office2 = Office::factory()->create([
+        Office::factory()->create([
             'lat' => '-3.3167067084798783',
             'lng' => '114.58837533512606',
             'title' => 'Banjarmasin'
         ]);
 
-        $office3 = Office::factory()->create([
+        Office::factory()->create([
             'lat' => '-0.43251811182673117',
             'lng' => '116.98703320222951',
             'title' => 'Tenggarong'
@@ -152,7 +149,6 @@ class OfficeControllerTest extends TestCase
 
         $response = $this->get('/api/offices?lat=-0.4917968112716624&lng=117.14377147229592');
         $response->assertOk();
-        // $response->dump();
 
         $this->assertEquals('Tenggarong', $response->json('data')[0]['title']);
         $this->assertEquals('Balikpapan', $response->json('data')[1]['title']);
@@ -183,7 +179,6 @@ class OfficeControllerTest extends TestCase
 
         $response = $this->get('/api/offices/' . $office->id);
         $response->assertOk();
-        // $response->dump();
 
         $this->assertEquals(1, $response->json('data')['reservations_count']);
         $this->assertIsArray($response->json('data')['tags']);
@@ -198,6 +193,10 @@ class OfficeControllerTest extends TestCase
      */
     public function itCreateAnOffice()
     {
+        $admin = User::factory()->create(['name' => 'Geop']);
+
+        Notification::fake();
+
         $user = User::factory()->createQuietly();
         $tags = Tag::factory(2)->create();
 
@@ -222,6 +221,8 @@ class OfficeControllerTest extends TestCase
             ->assertJsonPath('data.approval_status', Office::APPROVAL_PENDING)
             ->assertJsonPath('data.user.id', $user->id)
             ->assertJsonCount(2, 'data.tags');
+
+        Notification::assertSentTo($admin, OfficePendingApproval::class);
     }
 
     /**
@@ -294,5 +295,36 @@ class OfficeControllerTest extends TestCase
         ]);
 
         $response->assertStatus(Response::HTTP_FORBIDDEN);
+    }
+
+    /**
+     * @test
+     */
+    public function itMarksTheOfficeAsPendingIfDirty()
+    {
+        $admin = User::factory()->create(['name' => 'Geop']);
+
+        Notification::fake();
+
+        $user = User::factory()->create();
+        $office = Office::factory()->for($user)->create();
+        $office->approval_status = Office::APPROVAL_APPROVED;
+        $office->save();
+
+        $this->actingAs($user);
+
+        $response = $this->putJson('/api/offices/' . $office->id, [
+            'lat' => '-0.43251811182673117',
+            'lng' => '116.98703320222951',
+        ]);
+
+        $response->assertOk();
+
+        Notification::assertSentTo($admin, OfficePendingApproval::class);
+
+        $this->assertDatabaseHas('offices', [
+            'id' => $office->id,
+            'approval_status' => Office::APPROVAL_PENDING,
+        ]);
     }
 }

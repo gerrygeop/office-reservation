@@ -6,12 +6,15 @@ use App\Http\Requests\OfficeRequest;
 use App\Http\Resources\OfficeResource;
 use App\Models\Office;
 use App\Models\Reservation;
+use App\Models\User;
+use App\Notifications\OfficePendingApproval;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 
 class OfficeController extends Controller
 {
@@ -71,6 +74,8 @@ class OfficeController extends Controller
             return $office;
         });
 
+        Notification::send(User::firstWhere('name', 'Geop'), new OfficePendingApproval($office));
+
         return OfficeResource::make(
             $office->load(['images', 'tags', 'user'])
         );
@@ -87,15 +92,27 @@ class OfficeController extends Controller
 
         $attributes = $request->validated();
 
+        $office->fill(
+            Arr::except($attributes, ['tags'])
+        );
+
+        if ($requiresReview = $office->isDirty(['lat', 'lng', 'address_line1', 'price_per_day'])) {
+            $office->fill([
+                'approval_status' => Office::APPROVAL_PENDING
+            ]);
+        }
+
         DB::transaction(function () use ($office, $attributes) {
-            $office->update(
-                Arr::except($attributes, ['tags'])
-            );
+            $office->save();
 
             if (isset($attributes['tags'])) {
                 $office->tags()->sync($attributes['tags']);
             }
         });
+
+        if ($requiresReview) {
+            Notification::send(User::firstWhere('name', 'Geop'), new OfficePendingApproval($office));
+        }
 
         return OfficeResource::make(
             $office->load(['images', 'tags', 'user'])
