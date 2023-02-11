@@ -236,7 +236,7 @@ class OfficeControllerTest extends TestCase
 
         $response = $this->postJson('/api/offices');
 
-        $response->assertStatus(Response::HTTP_FORBIDDEN);
+        $response->assertForbidden();
     }
 
     /**
@@ -294,7 +294,7 @@ class OfficeControllerTest extends TestCase
             'title' => 'Wana Group'
         ]);
 
-        $response->assertStatus(Response::HTTP_FORBIDDEN);
+        $response->assertForbidden();
     }
 
     /**
@@ -338,7 +338,7 @@ class OfficeControllerTest extends TestCase
 
         $this->actingAs($user);
 
-        $response = $this->delete('/api/offices/' . $office->id);
+        $response = $this->deleteJson('/api/offices/' . $office->id);
 
         $response->assertOk();
         $this->assertSoftDeleted($office);
@@ -347,7 +347,7 @@ class OfficeControllerTest extends TestCase
     /**
      * @test
      */
-    public function itCannotDeleteAnOfficeThatHas()
+    public function itCannotDeleteAnOfficeThatHasReservations()
     {
         $user = User::factory()->create();
         $office = Office::factory()->for($user)->create();
@@ -355,11 +355,11 @@ class OfficeControllerTest extends TestCase
 
         $this->actingAs($user);
 
-        $response = $this->delete('/api/offices/' . $office->id);
+        $response = $this->deleteJson('/api/offices/' . $office->id);
 
-        $response->assertStatus(Response::HTTP_FOUND);
+        $response->assertUnprocessable();
 
-        $this->assertDatabaseHas('office', [
+        $this->assertDatabaseHas('offices', [
             'id' => $office->id,
             'deleted_at' => null,
         ]);
