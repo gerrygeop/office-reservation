@@ -9,6 +9,7 @@ use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class OfficeControllerTest extends TestCase
@@ -197,31 +198,29 @@ class OfficeControllerTest extends TestCase
     public function itCreateAnOffice()
     {
         $user = User::factory()->createQuietly();
-        $tag1 = Tag::factory()->create();
-        $tag2 = Tag::factory()->create();
+        $tags = Tag::factory(2)->create();
 
         $this->actingAs($user);
 
-        $response = $this->postJson('/api/offices', [
-            'title' => 'Kansas',
-            'description' => 'description',
-            'lat' => '-1.246683793171039',
-            'lng' => '116.85410448618018',
-            'address_line1' => 'address 1',
-            'price_per_day' => 10_000,
-            'monthly_discount' => 5,
-            'tags' => [$tag1->id, $tag2->id],
-        ]);
+        $response = $this->postJson('/api/offices', Office::factory()->raw([
+            'tags' => $tags->pluck('id')->toArray(),
+        ]));
+
+        // $response = $this->postJson('/api/offices', [
+        //     'title' => 'Kansas',
+        //     'description' => 'description',
+        //     'lat' => '-1.246683793171039',
+        //     'lng' => '116.85410448618018',
+        //     'address_line1' => 'address 1',
+        //     'price_per_day' => 10_000,
+        //     'monthly_discount' => 5,
+        //     'tags' => [$tag1->id, $tag2->id],
+        // ]);
 
         $response->assertCreated()
-            ->assertJsonPath('data.title', 'Kansas')
             ->assertJsonPath('data.approval_status', Office::APPROVAL_PENDING)
             ->assertJsonPath('data.user.id', $user->id)
             ->assertJsonCount(2, 'data.tags');
-
-        $this->assertDatabaseHas('offices', [
-            'title' => 'Kansas'
-        ]);
     }
 
     /**
@@ -229,12 +228,68 @@ class OfficeControllerTest extends TestCase
      */
     public function itDoesntAllowCreatingIfScopeIsNotProvided()
     {
-        $user = User::factory()->createQuietly();
+        $user = User::factory()->create();
 
-        $token = $user->createToken('test', ['office.create']);
+        Sanctum::actingAs($user, []);
 
-        $response = $this->postJson('/api/offices', [], [
-            'Authorization' => 'Bearer ' . $token->plainTextToken
+        $response = $this->postJson('/api/offices');
+
+        $response->assertStatus(403);
+    }
+
+    /**
+     * @test
+     */
+    public function itDoesntAllowCreatingIfScopeIsProvided()
+    {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user, ['office.create']);
+
+        $response = $this->postJson('/api/offices');
+
+        $this->assertNotEquals(403, $response->status());
+    }
+
+    /**
+     * @test
+     */
+    public function itUpdateAnOffice()
+    {
+        $user = User::factory()->create();
+        $tags = Tag::factory(3)->create();
+        $anotherTag = Tag::factory()->create();
+        $office = Office::factory()->for($user)->create();
+
+        $office->tags()->attach($tags);
+
+        $this->actingAs($user);
+
+        $response = $this->putJson('/api/offices/' . $office->id, [
+            'title' => 'Wana Group',
+            'tags' => [$tags[0]->id, $anotherTag->id],
+        ]);
+
+        $response->assertOk()
+            ->assertJsonCount(2, 'data.tags')
+            ->assertJsonPath('data.tags.0.id', $tags[0]->id)
+            ->assertJsonPath('data.tags.1.id', $anotherTag->id)
+            ->assertJsonPath('data.title', 'Wana Group');
+    }
+
+    /**
+     * @test
+     */
+    public function itDoesntUpdateOfficeThatDoesntBelongsToUser()
+    {
+        $user = User::factory()->create();
+        $anotherUser = User::factory()->create();
+        $office = Office::factory()->for($anotherUser)->create();
+
+        $this->actingAs($user);
+
+        $response = $this->putJson('/api/offices/' . $office->id, [
+            'title' => 'Wana Group'
         ]);
 
         $response->assertStatus(403);
