@@ -327,4 +327,41 @@ class OfficeControllerTest extends TestCase
             'approval_status' => Office::APPROVAL_PENDING,
         ]);
     }
+
+    /**
+     * @test
+     */
+    public function itCanDeleteOffice()
+    {
+        $user = User::factory()->create();
+        $office = Office::factory()->for($user)->create();
+
+        $this->actingAs($user);
+
+        $response = $this->delete('/api/offices/' . $office->id);
+
+        $response->assertOk();
+        $this->assertSoftDeleted($office);
+    }
+
+    /**
+     * @test
+     */
+    public function itCannotDeleteAnOfficeThatHas()
+    {
+        $user = User::factory()->create();
+        $office = Office::factory()->for($user)->create();
+        Reservation::factory(3)->for($office)->create();
+
+        $this->actingAs($user);
+
+        $response = $this->delete('/api/offices/' . $office->id);
+
+        $response->assertStatus(Response::HTTP_FOUND);
+
+        $this->assertDatabaseHas('office', [
+            'id' => $office->id,
+            'deleted_at' => null,
+        ]);
+    }
 }
