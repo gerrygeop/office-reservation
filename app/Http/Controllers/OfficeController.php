@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\OfficeRequest;
 use App\Http\Resources\OfficeResource;
+use App\Http\Validators\OfficeValidator;
 use App\Models\Office;
 use App\Models\Reservation;
 use App\Models\User;
@@ -55,14 +56,15 @@ class OfficeController extends Controller
         return OfficeResource::make($office);
     }
 
-    public function create(OfficeRequest $request): JsonResource
+    public function create(): JsonResource
     {
         abort_unless(
             auth()->user()->tokenCan('office.create'),
             Response::HTTP_FORBIDDEN
         );
 
-        $attributes = $request->validated();
+        $attributes = (new OfficeValidator())->validate($office = new Office(), request()->all());
+        // $attributes = $request->validated();
 
         $attributes['approval_status'] = Office::APPROVAL_PENDING;
 
@@ -89,7 +91,7 @@ class OfficeController extends Controller
         );
     }
 
-    public function update(OfficeRequest $request, Office $office): JsonResource
+    public function update(Office $office): JsonResource
     {
         abort_unless(
             auth()->user()->tokenCan('office.update'),
@@ -98,7 +100,8 @@ class OfficeController extends Controller
 
         $this->authorize('update', $office);
 
-        $attributes = $request->validated();
+        $attributes = (new OfficeValidator())->validate($office, request()->all());
+        // $attributes = $request->validated();
 
         $office->fill(
             Arr::except($attributes, ['tags'])
