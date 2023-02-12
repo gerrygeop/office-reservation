@@ -2,40 +2,36 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\ImageResource;
 use App\Models\Image;
+use App\Models\Office;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Response;
 
 class ImageController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function index()
-    {
-        //
-    }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
+    public function store(Office $office): JsonResource
     {
-        //
-    }
+        abort_unless(
+            auth()->user()->tokenCan('office.update'),
+            Response::HTTP_FORBIDDEN
+        );
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        //
+        $this->authorize('update', $office);
+
+        request()->validate([
+            'image' => ['file', 'max:5000', 'mimes:jpg,png']
+        ]);
+
+        $path = request()->file('image')->storePublicly('/', ['disk' => 'public']);
+
+        $image = $office->images()->create([
+            'path' => $path
+        ]);
+
+        return ImageResource::make($image);
     }
 
     /**
