@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -206,17 +207,6 @@ class OfficeControllerTest extends TestCase
             'tags' => $tags->pluck('id')->toArray(),
         ]));
 
-        // $response = $this->postJson('/api/offices', [
-        //     'title' => 'Kansas',
-        //     'description' => 'description',
-        //     'lat' => '-1.246683793171039',
-        //     'lng' => '116.85410448618018',
-        //     'address_line1' => 'address 1',
-        //     'price_per_day' => 10_000,
-        //     'monthly_discount' => 5,
-        //     'tags' => [$tag1->id, $tag2->id],
-        // ]);
-
         $response->assertCreated()
             ->assertJsonPath('data.approval_status', Office::APPROVAL_PENDING)
             ->assertJsonPath('data.user.id', $user->id)
@@ -377,8 +367,14 @@ class OfficeControllerTest extends TestCase
      */
     public function itCanDeleteOffice()
     {
+        Storage::disk('public')->put('/office_image.jpg', 'empy');
+
         $user = User::factory()->create();
         $office = Office::factory()->for($user)->create();
+
+        $image = $office->images()->create([
+            'path' => 'office_image.jpg'
+        ]);
 
         $this->actingAs($user);
 
@@ -386,6 +382,11 @@ class OfficeControllerTest extends TestCase
 
         $response->assertOk();
         $this->assertSoftDeleted($office);
+        $this->assertModelMissing($image);
+
+        Storage::disk('public')->assertMissing(
+            'office_image.jpg'
+        );
     }
 
     /**
