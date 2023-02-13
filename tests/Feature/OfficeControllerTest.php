@@ -367,7 +367,7 @@ class OfficeControllerTest extends TestCase
      */
     public function itCanDeleteOffice()
     {
-        Storage::disk('public')->put('/office_image.jpg', 'empy');
+        Storage::put('/office_image.jpg', 'empy');
 
         $user = User::factory()->create();
         $office = Office::factory()->for($user)->create();
@@ -384,7 +384,7 @@ class OfficeControllerTest extends TestCase
         $this->assertSoftDeleted($office);
         $this->assertModelMissing($image);
 
-        Storage::disk('public')->assertMissing(
+        Storage::assertMissing(
             'office_image.jpg'
         );
     }
