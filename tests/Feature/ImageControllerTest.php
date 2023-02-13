@@ -113,4 +113,31 @@ class ImageControllerTest extends TestCase
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['image' => 'Cannot delete the featured image!']);
     }
+
+    /**
+     * @test
+     */
+    public function itCannotDeleteImageThatBelongsToAnotherResource()
+    {
+        $user = User::factory()->create();
+        $office = Office::factory()->for($user)->create();
+        $anotherOffice = Office::factory()->for($user)->create();
+
+        $office->images()->create([
+            'path' => 'image1.jpg'
+        ]);
+        $anotherOfficeImage = $anotherOffice->images()->create([
+            'path' => 'anotherOfficeImage.jpg'
+        ]);
+        $anotherOffice->images()->create([
+            'path' => 'anotherOfficeImage_2.jpg'
+        ]);
+
+        $this->actingAs($user);
+
+        $response = $this->deleteJson("/api/offices/{$office->id}/images/{$anotherOfficeImage->id}");
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['image' => 'Cannot delete this image!']);
+    }
 }
