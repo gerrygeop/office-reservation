@@ -8,6 +8,8 @@ use App\Models\Office;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class ImageController extends Controller
 {
@@ -45,37 +47,27 @@ class ImageController extends Controller
         //
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Image  $image
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Image $image)
+    public function delete(Office $office, Image $image)
     {
-        //
-    }
+        abort_unless(
+            auth()->user()->tokenCan('office.update'),
+            Response::HTTP_FORBIDDEN
+        );
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Image  $image
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, Image $image)
-    {
-        //
-    }
+        $this->authorize('update', $office);
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Image  $image
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Image $image)
-    {
-        //
+        throw_if(
+            $office->images()->count() == 1,
+            ValidationException::withMessages(['image' => 'Cannot delete the only image!'])
+        );
+
+        throw_if(
+            $office->featured_image_id == $image->id,
+            ValidationException::withMessages(['image' => 'Cannot delete the featured image!'])
+        );
+
+        Storage::disk('public')->delete($image->path);
+
+        $image->delete();
     }
 }
