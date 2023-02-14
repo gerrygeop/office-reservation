@@ -222,7 +222,7 @@ class OfficeControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        Sanctum::actingAs($user, []);
+        $this->actingAs($user, []);
 
         $response = $this->postJson('/api/offices');
 
@@ -236,7 +236,7 @@ class OfficeControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        Sanctum::actingAs($user, ['office.create']);
+        $this->actingAs($user, ['office.create']);
 
         $response = $this->postJson('/api/offices');
 
