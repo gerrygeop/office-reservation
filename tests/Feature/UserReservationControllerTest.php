@@ -39,7 +39,5 @@ class UserReservationControllerTest extends TestCase
             ->assertJsonCount(3, 'data')
             ->assertJsonStructure(['data' => ['*' => ['id', 'office']]])
             ->assertJsonPath('data.0.office.featured_image.id', $image->id);
-
-        dd($response->json());
     }
 }
