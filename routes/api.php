@@ -22,6 +22,7 @@ Route::delete('/offices/{office}/images/{image:id}', [ImageController::class, 'd
 
 //User Reservation
 Route::get('/reservations', [UserReservationController::class, 'index'])->middleware(['auth:sanctum', 'verified']);
+Route::post('/reservations', [UserReservationController::class, 'create'])->middleware(['auth:sanctum', 'verified']);
 
 //Host Reservation
 Route::get('/host/reservations', [HostReservationController::class, 'index'])->middleware(['auth:sanctum', 'verified']);

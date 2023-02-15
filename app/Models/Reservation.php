@@ -15,6 +15,15 @@ class Reservation extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'price' => 'integer',
+        'status' => 'integer',
+        'start_date' => 'immutable_date',
+        'end_date' => 'immutable_date',
+        'wifi_password' => 'encrypted'
+    ];
+
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -23,6 +32,13 @@ class Reservation extends Model
     public function office(): BelongsTo
     {
         return $this->belongsTo(Office::class);
+    }
+
+    public function scopeActiveBetween($query, $from, $to)
+    {
+        $query
+            ->whereStatus(Reservation::STATUS_ACTIVE)
+            ->betweenDates($from, $to);
     }
 
     public function scopeBetweenDates($query, $from, $to)

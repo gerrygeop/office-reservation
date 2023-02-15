@@ -3,10 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\ReservationResource;
+use App\Models\Office;
 use App\Models\Reservation;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class UserReservationController extends Controller
 {
@@ -44,14 +49,69 @@ class UserReservationController extends Controller
         return ReservationResource::collection($reservation);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function create()
     {
-        //
+        abort_unless(
+            auth()->user()->tokenCan('reservation.make'),
+            Response::HTTP_FORBIDDEN
+        );
+
+        validator(request()->all(), [
+            'office_id' => ['required', 'integer'],
+            'start_date' => ['required', 'date:Y-m-d', 'after:' . now()->addDay()->toDateString()],
+            'end_date' => ['required', 'date:Y-m-d', 'after:start_date'],
+        ])->validate();
+
+        try {
+            $office = Office::findOrFail(request('office_id'));
+        } catch (ModelNotFoundException $e) {
+            throw ValidationException::withMessages([
+                'office_id' => 'Invalid Office ID'
+            ]);
+        }
+
+        if ($office->user_id == auth()->id()) {
+            throw ValidationException::withMessages([
+                'office_id' => 'You cannot make a reservation in your own office!'
+            ]);
+        }
+
+        $reservation = Cache::lock('reservations_office_' . $office->id, 10)->block(3, function () use ($office) {
+            $numberOfDays = Carbon::parse(request('end_date'))->endOfDay()->diffInDays(
+                Carbon::parse(request('start_date'))->startOfDay()
+            );
+
+            if ($numberOfDays < 2) {
+                throw ValidationException::withMessages([
+                    'office_id' => 'You cannot make a reservation for only 1 day!'
+                ]);
+            }
+
+            if ($office->reservations()->activeBetween(request('start_date'), request('end_date'))->exists()) {
+                throw ValidationException::withMessages([
+                    'office_id' => 'You cannot make a reservation during this time!'
+                ]);
+            }
+
+            $price = $numberOfDays * $office->price_per_day;
+
+            if ($numberOfDays >= 28 && $office->monthly_discount) {
+                $price = $price - ($price * $office->monthly_discount / 100);
+            }
+
+            return Reservation::create([
+                'user_id' => auth()->id(),
+                'office_id' => $office->id,
+                'start_date' => request('start_date'),
+                'end_date' => request('end_date'),
+                'status' => Reservation::STATUS_ACTIVE,
+                'price' => $price,
+            ]);
+        });
+
+        return ReservationResource::make(
+            $reservation->load('office')
+        );
     }
 
     /**
