@@ -27,8 +27,8 @@ class Reservation extends Model
 
     public function scopeBetweenDates($query, $from, $to)
     {
-        return $query->where(function ($query) use ($from, $to) {
-            return $query
+        $query->where(function ($query) use ($from, $to) {
+            $query
                 ->whereBetween('start_date', [$from, $to])
                 ->orWhereBetween('end_date', [$from, $to])
                 ->orWhere(function ($query) use ($from, $to) {
