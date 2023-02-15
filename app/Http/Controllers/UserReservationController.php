@@ -129,37 +129,24 @@ class UserReservationController extends Controller
         );
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Reservation  $reservation
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Reservation $reservation)
+    public function cancel(Reservation $reservation)
     {
-        //
-    }
+        abort_unless(
+            auth()->user()->tokenCan('reservation.cancel'),
+            Response::HTTP_FORBIDDEN
+        );
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Reservation  $reservation
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, Reservation $reservation)
-    {
-        //
-    }
+        throw_if(
+            $reservation->user_id != auth()->id() || $reservation->status != Reservation::STATUS_ACTIVE || $reservation->start_date < now()->toDateString(),
+            ValidationException::withMessages(['reservation' => 'You cannot cancel this reservation!'])
+        );
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Reservation  $reservation
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Reservation $reservation)
-    {
-        //
+        $reservation->update([
+            'status' => Reservation::STATUS_CANCEL
+        ]);
+
+        return ReservationResource::make(
+            $reservation->load('office')
+        );
     }
 }
