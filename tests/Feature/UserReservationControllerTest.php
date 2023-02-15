@@ -52,19 +52,23 @@ class UserReservationControllerTest extends TestCase
         $toDate = '2023-04-04';
 
         // Within the date range
-        $reservation_1 = Reservation::factory()->for($user)->create([
-            'start_date' => '2023-03-01',
-            'end_date' => '2023-03-15',
-        ]);
-
-        $reservation_2 = Reservation::factory()->for($user)->create([
-            'start_date' => '2023-03-25',
-            'end_date' => '2023-04-15',
-        ]);
-
-        $reservation_3 = Reservation::factory()->for($user)->create([
-            'start_date' => '2023-03-25',
-            'end_date' => '2023-03-29',
+        $reservation = Reservation::factory()->for($user)->createMany([
+            [
+                'start_date' => '2023-03-01',
+                'end_date' => '2023-03-15',
+            ],
+            [
+                'start_date' => '2023-03-25',
+                'end_date' => '2023-04-15',
+            ],
+            [
+                'start_date' => '2023-03-25',
+                'end_date' => '2023-03-29',
+            ],
+            [
+                'start_date' => '2023-03-01',
+                'end_date' => '2023-04-15',
+            ],
         ]);
 
         // Within the range but belongs to a different user
@@ -90,20 +94,14 @@ class UserReservationControllerTest extends TestCase
             'to_date' => $toDate,
         ]));
 
-        $response
-            ->assertJsonCount(3, 'data');
+        $response->assertJsonCount(4, 'data');
 
-        $this
-            ->assertEquals(
-                [
-                    $reservation_1->id,
-                    $reservation_2->id,
-                    $reservation_3->id
-                ],
-                collect(
-                    $response->json('data')
-                )->pluck('id')->toArray()
-            );
+        $this->assertEquals(
+            $reservation->pluck('id')->toArray(),
+            collect(
+                $response->json('data')
+            )->pluck('id')->toArray()
+        );
     }
 
     /**
