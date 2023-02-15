@@ -5,7 +5,10 @@ namespace Tests\Feature;
 use App\Models\Office;
 use App\Models\Reservation;
 use App\Models\User;
+use App\Notifications\NewHostReservation;
+use App\Notifications\NewReservation;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class UserReservationControllerTest extends TestCase
@@ -333,8 +336,10 @@ class UserReservationControllerTest extends TestCase
     /**
      * @test
      */
-    public function itCannotMakeReservationForOneDays()
+    public function itSendNotificationsOnNewReservations()
     {
+        Notification::fake();
+
         $user = User::factory()->create();
         $office = Office::factory()->create();
 
@@ -342,12 +347,15 @@ class UserReservationControllerTest extends TestCase
 
         $response = $this->postJson('/api/reservations', [
             'office_id' => $office->id,
-            'start_date' => now()->addDays(2),
-            'end_date' => now()->addDays(2),
+            'start_date' => now()->addDays(3),
+            'end_date' => now()->addDays(6),
         ]);
 
+        Notification::assertSentTo($user, NewReservation::class);
+        Notification::assertSentTo($office->user, NewHostReservation::class);
+
         $response
-            ->assertUnprocessable();
+            ->assertCreated();
     }
 
     /**
