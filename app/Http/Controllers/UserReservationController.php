@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
@@ -109,6 +110,7 @@ class UserReservationController extends Controller
                 'end_date' => $data['end_date'],
                 'status' => Reservation::STATUS_ACTIVE,
                 'price' => $price,
+                'wifi_password' => Str::random(10)
             ]);
         });
 
@@ -125,28 +127,6 @@ class UserReservationController extends Controller
         return ReservationResource::make(
             $reservation->load('office')
         );
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Reservation  $reservation
-     * @return \Illuminate\Http\Response
-     */
-    public function show(Reservation $reservation)
-    {
-        //
     }
 
     /**
