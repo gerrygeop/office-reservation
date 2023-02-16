@@ -20,7 +20,7 @@ class OfficeFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'title' => $this->faker->sentence(),
+            'title' => $this->faker->company(),
             'description' => $this->faker->paragraph(),
             'lat' => $this->faker->latitude(),
             'lng' => $this->faker->longitude(),
